@@ -1,0 +1,9 @@
+-- Execute this in a Supabase project after configuring authentication.
+create table public.products (id uuid primary key default gen_random_uuid(), name text not null, category text not null, price_cents integer not null check(price_cents>=0), stock integer not null check(stock>=0), description text not null, image_url text, featured boolean not null default false, active boolean not null default true, created_at timestamptz not null default now());
+create table public.profiles (id uuid primary key references auth.users(id) on delete cascade, role text not null check(role in ('admin')));
+create table public.orders (id uuid primary key default gen_random_uuid(), buyer_name text, buyer_phone text, status text not null default 'Pendiente' check(status in ('Pendiente','Confirmado','Preparando','Enviado','Entregado')), tracking_code text, total_cents integer not null check(total_cents>=0), created_at timestamptz not null default now());
+alter table public.products enable row level security; alter table public.profiles enable row level security; alter table public.orders enable row level security;
+create policy "public reads active products" on public.products for select using (active=true);
+create policy "admins manage products" on public.products for all to authenticated using (exists(select 1 from public.profiles where id=(select auth.uid()) and role='admin')) with check (exists(select 1 from public.profiles where id=(select auth.uid()) and role='admin'));
+create policy "admins manage profiles" on public.profiles for all to authenticated using (id=(select auth.uid()) and role='admin') with check (id=(select auth.uid()) and role='admin');
+create policy "admins manage orders" on public.orders for all to authenticated using (exists(select 1 from public.profiles where id=(select auth.uid()) and role='admin')) with check (exists(select 1 from public.profiles where id=(select auth.uid()) and role='admin'));
